@@ -46,17 +46,19 @@ pub const IDENTIFIER_INTERNAL_CHARS: &str = IDENTIFIER_INITIAL_CHARS;
 pub const AMBIGUOUS_OPERATORS: &[&str] = &["+", "-"];
 pub const UNARY_OPERATORS: &[&str] = &["+", "-", "!", "¬", "~"];
 pub const BINARY_OPERATORS: &[&str] = &[
-    "^", "*", "/", "%", "+", "-", "<=>", "<=", ">=", ":=", "<<<", ">>>", "<<", ">>", "<",
-    ">", "!=", "==", "&&", "||", "??", "!?", "&", "|", "^|",
+    "^", "*", "/", "%", "+", "-", "<=>", "<=", ">=", ":=", "<<<", ">>>", "<<", ">>", "<", ">",
+    "!=", "==", "&&", "||", "??", "!?", "&", "|", "^|",
 ];
 pub const BUILTIN_UNARY_FUNCTIONS: &[&str] = &[
     "abs", "not", "sin", "cos", "tan", "cot", "sec", "csc", "exp", "ln", "lg", "log", "sqrt",
     "cbrt", "mem",
 ];
-pub const BUILTIN_BINARY_FUNCTIONS: &[&str] = &[
-    "rt", "logb", "choose"
-];
+pub const BUILTIN_BINARY_FUNCTIONS: &[&str] = &["rt", "logb", "choose"];
 pub const BUILTIN_VARIABLE_IDENTIFIERS: &[&str] = &[
-    "\\inbase", "\\outbase", "\\showfracs", "\\precision",
-    "pi", "e"
+    "\\inbase",
+    "\\outbase",
+    "\\showfracs",
+    "\\precision",
+    "pi",
+    "e",
 ];

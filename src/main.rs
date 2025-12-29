@@ -1,15 +1,14 @@
 #![allow(dead_code)]
 
-mod parser;
-mod patterns;
-mod types;
+mod core;
 
 use std::collections::HashMap;
 
-use crate::types::{Ast, Position, SyntaxError, TokenType, Value};
-use crate::parser::Parser;
-
-//use crate::patterns;
+use crate::core::ast::Ast;
+use crate::core::errors::SyntaxError;
+use crate::core::parser::{Parser, Position};
+use crate::core::tokens::TokenType;
+use crate::core::values::Value;
 
 pub struct VariableStore {
     pub map: HashMap<String, Value>,

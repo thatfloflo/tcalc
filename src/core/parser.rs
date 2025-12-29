@@ -1,5 +1,9 @@
-use crate::patterns;
-use crate::types::{Ast, AstNode, Position, SyntaxError, Token, TokenType};
+use std::fmt::Display;
+
+use crate::core::ast::{Ast, AstNode};
+use crate::core::errors::SyntaxError;
+use crate::core::patterns;
+use crate::core::tokens::{Token, TokenType};
 
 pub struct Parser {
     pub ast: Ast,
@@ -507,5 +511,29 @@ impl Parser {
 impl Default for Parser {
     fn default() -> Self {
         Self { ast: Ast::new() }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Position {
+    pub line: usize,
+    pub chr: usize,
+}
+
+impl Position {
+    pub fn new(line: usize, chr: usize) -> Self {
+        Self { line, chr }
+    }
+}
+
+impl Default for Position {
+    fn default() -> Self {
+        Self { line: 0, chr: 0 }
+    }
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.chr)
     }
 }
