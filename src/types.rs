@@ -26,7 +26,6 @@ pub enum TokenType {
     VariableIdentifier,
     UnaryFunctionIdentifier,
     BinaryFunctionIdentifier,
-    ImplicitMultiplication,
 }
 
 impl Display for TokenType {
@@ -45,7 +44,6 @@ impl Display for TokenType {
                 Self::VariableIdentifier => "VariableIdentifier",
                 Self::UnaryFunctionIdentifier => "UnaryFunctionIdentifier",
                 Self::BinaryFunctionIdentifier => "BinaryFunctionIdentifier",
-                Self::ImplicitMultiplication => "ImplicitMultiplication",
             }
         )
     }
@@ -216,11 +214,11 @@ impl Value {
         }
     }
 
-    fn _from_bitseq_str(s: &str, position: Position) -> Result<Value, ParseError> {
+    fn _from_bitseq_str(s: &str, position: Position) -> Result<Value, SyntaxError> {
         let norm_s = Self::_strip_str(s);
         match Bitseq::from_str(&norm_s) {
             Some(b) => Ok(Self::from_bitseq(b)),
-            None => Err(ParseError {
+            None => Err(SyntaxError {
                 msg: format!(
                     "Failed to parse string \"{}\" (normalised to \"{}\" into bit-sequence value",
                     s, norm_s
@@ -230,11 +228,11 @@ impl Value {
         }
     }
 
-    fn _from_int_str(s: &str, base: u8, position: Position) -> Result<Self, ParseError> {
+    fn _from_int_str(s: &str, base: u8, position: Position) -> Result<Self, SyntaxError> {
         let norm_s = Self::_strip_str(s);
         match Integer::from_string_base(base, &norm_s) {
             Some(i) => Ok(Self::from_integer(i)),
-            None => Err(ParseError {
+            None => Err(SyntaxError {
                 msg: format!(
                     "Failed to parse string \"{}\" (normalised to \"{}\" into integer value",
                     s, norm_s
@@ -244,13 +242,13 @@ impl Value {
         }
     }
 
-    fn _from_frac_str(s: &str, base: u8, position: Position) -> Result<Self, ParseError> {
+    fn _from_frac_str(s: &str, base: u8, position: Position) -> Result<Self, SyntaxError> {
         let norm_s = Self::_strip_str(s);
         let mut options = FromSciStringOptions::default();
         options.set_base(base);
         match Rational::from_sci_string_with_options(&norm_s, options) {
             Some(r) => Ok(Self::from_rational(r)),
-            None => Err(ParseError {
+            None => Err(SyntaxError {
                 msg: format!(
                     "Failed to parse string \"{}\" (normalised to \"{}\" into rational value",
                     s, norm_s
@@ -260,11 +258,11 @@ impl Value {
         }
     }
 
-    pub fn from_str(s: &str, position: Position) -> Result<Self, ParseError> {
+    pub fn from_str(s: &str, position: Position) -> Result<Self, SyntaxError> {
         let base: u8 = if let Some(b) = Self::_check_str_and_get_base(s) {
             b
         } else {
-            return Err(ParseError {
+            return Err(SyntaxError {
                 msg: format!("The pattern of the numeral string \"{}\" is invalid", s),
                 position: position,
             });
@@ -393,10 +391,10 @@ impl From<Bitseq> for Value {
 }
 
 impl TryFrom<&str> for Value {
-    type Error = ParseError;
+    type Error = SyntaxError;
 
     fn try_from(item: &str) -> Result<Self, Self::Error> {
-        Self::from_str(item, Position { line: 0, chr: 0 })
+        Self::from_str(item, Position::default())
     }
 }
 
@@ -464,6 +462,24 @@ pub struct Position {
     pub chr: usize,
 }
 
+impl Position {
+    pub fn new(line: usize, chr: usize) -> Self {
+        Self {
+            line,
+            chr,
+        }
+    }
+}
+
+impl Default for Position {
+    fn default() -> Self {
+        Self {
+            line: 0,
+            chr: 0,
+        }
+    }
+}
+
 impl Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.line, self.chr)
@@ -476,9 +492,28 @@ pub struct Token {
     pub type_: TokenType,
     pub content: Vec<char>,
     pub position: Position,
+    pub implicit: bool,
 }
 
 impl Token {
+    pub fn new(type_: TokenType, content: Vec<char>, position: Position) -> Self {
+        Self {
+            type_,
+            content,
+            position,
+            implicit: false,
+        }
+    }
+
+    pub fn new_implicit(type_: TokenType, content: Vec<char>, position: Position) -> Self {
+        Self {
+            type_,
+            content,
+            position,
+            implicit: true,
+        }
+    }
+
     pub fn content_to_string(&self) -> String {
         self.content.iter().collect()
     }
@@ -486,33 +521,51 @@ impl Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let implicit_note = if self.implicit { " (implicit)" } else { "" };
         write!(
             f,
-            "Token({:?}: \"{}\" at {})",
+            "Token({:?}{}: \"{}\" at {})",
             self.type_,
+            implicit_note,
             self.content_to_string(),
             self.position
         )
     }
 }
 
-pub struct ParseNode {
+pub struct AstNode {
     pub token: Token,
-    pub subtree: Option<ParseTree>,
+    pub subtree: Option<Ast>,
     pub value: Option<Value>,
 }
 
-impl ParseNode {
-    pub fn new_from_token(token: Token, subtree: Option<ParseTree>) -> ParseNode {
-        ParseNode {
+impl AstNode {
+    pub fn new_from_token(token: Token) -> Self {
+        Self {
             token: token,
-            subtree: subtree,
+            subtree: None,
             value: None,
         }
     }
+
+    pub fn new_with_subtree(token: Token, subtree: Ast) -> Self {
+        Self {
+            token: token,
+            subtree: Some(subtree),
+            value: None,
+        }
+    }
+
+    pub fn has_subtree(&self) -> bool {
+        self.subtree.is_some()
+    }
+
+    pub fn set_subtree(&mut self, subtree: Ast) {
+        self.subtree = Some(subtree);
+    }
 }
 
-impl Display for ParseNode {
+impl Display for AstNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Err(e) = write!(f, "- {}", self.token) {
             return Err(e);
@@ -537,71 +590,82 @@ impl Display for ParseNode {
     }
 }
 
-pub struct ParseTree {
-    _vec: Vec<ParseNode>,
+pub struct Ast {
+    _vec: Vec<AstNode>,
     _level: usize,
 }
 
-impl ParseTree {
-    pub fn new() -> ParseTree {
-        ParseTree {
-            _vec: Vec::new(),
-            _level: 0,
-        }
-    }
-
-    pub fn new_subtree(level: usize) -> ParseTree {
-        ParseTree {
-            _vec: Vec::new(),
-            _level: level,
-        }
+impl Ast {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn level(&self) -> usize {
         self._level
     }
 
-    pub fn push(&mut self, item: ParseNode) {
+    pub fn push(&mut self, mut item: AstNode) {
+        if item.has_subtree() {
+            item.subtree.as_mut().unwrap().relevel_from(self._level);
+        }
         self._vec.push(item)
     }
 
     pub fn push_token(&mut self, token: Token) {
-        self._vec.push(ParseNode::new_from_token(token, None))
+        self._vec.push(AstNode::new_from_token(token))
     }
 
-    pub fn push_subtree(&mut self, token: Token, mut subtree: ParseTree) {
-        subtree._level = self._level + 1;
+    pub fn push_subtree(&mut self, token: Token, mut subtree: Ast) {
+        subtree.relevel_from(self._level + 1);
         self._vec
-            .push(ParseNode::new_from_token(token, Some(subtree)))
+            .push(AstNode::new_with_subtree(token, subtree))
     }
 
-    pub fn last(&self) -> Option<&ParseNode> {
+    pub fn last(&self) -> Option<&AstNode> {
         self._vec.last()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &ParseNode> {
+    pub fn iter(&self) -> impl Iterator<Item = &AstNode> {
         self._vec.iter()
     }
 
     pub fn len(&self) -> usize {
         self._vec.len()
     }
+
+    pub fn relevel_from(&mut self, base_level: usize) {
+        self._level = base_level;
+        for node in self._vec.iter_mut() {
+            if node.has_subtree() {
+                node.subtree.as_mut().unwrap().relevel_from(base_level + 1);
+            }
+        }
+    }
 }
 
-impl Display for ParseTree {
+impl Default for Ast {
+    fn default() -> Self {
+        Self {
+            _vec: Vec::new(),
+            _level: 0,
+        }
+    }
+}
+
+impl Display for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut formatted = String::new();
         let indent = "    ".repeat(self._level);
         for item in &self._vec {
-            formatted.push_str(format!("{}{}\n", indent, item).as_str());
+            formatted.push_str(format!("{:2} {}{}\n", self._level, indent, item).as_str());
         }
         formatted.pop(); // drop last newline
         write!(f, "{}", formatted)
     }
 }
 
-impl IntoIterator for ParseTree {
-    type Item = ParseNode;
+impl IntoIterator for Ast {
+    type Item = AstNode;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -609,17 +673,43 @@ impl IntoIterator for ParseTree {
     }
 }
 
-impl Deref for ParseTree {
-    type Target = Vec<ParseNode>;
+impl Deref for Ast {
+    type Target = Vec<AstNode>;
 
     fn deref(&self) -> &Self::Target {
         &self._vec
     }
 }
 
-impl DerefMut for ParseTree {
+impl DerefMut for Ast {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self._vec
+    }
+}
+
+impl From<&mut Vec<AstNode>> for Ast {
+    fn from(value: &mut Vec<AstNode>) -> Self {
+        let mut tree = Self::new();
+        tree.append(value);
+        tree
+    }
+}
+
+impl From<Vec<AstNode>> for Ast {
+    fn from(value: Vec<AstNode>) -> Self {
+        let mut tree = Self::new();
+        for node in value {
+            tree.push(node);
+        }
+        tree
+    }
+}
+
+impl From<AstNode> for Ast {
+    fn from(value: AstNode) -> Self {
+        let mut tree = Self::new();
+        tree.push(value);
+        tree
     }
 }
 
@@ -629,12 +719,21 @@ pub struct ConversionError {
 
 
 #[derive(Debug, Clone)]
-pub struct ParseError {
+pub struct SyntaxError {
     pub msg: String,
     pub position: Position,
 }
 
-impl Display for ParseError {
+impl SyntaxError {
+    pub fn new<S: AsRef<str>>(msg: S, position: Position) -> Self {
+        Self {
+            msg: msg.as_ref().to_string(),
+            position: position,
+        }
+    }
+}
+
+impl Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} at {}", self.msg, self.position)
     }
