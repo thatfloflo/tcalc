@@ -95,8 +95,12 @@ impl Parser {
                     tree[i].token.position.chr + 1,
                     &mut subtree,
                 ) {
-                    Err(e) => return Err(e),
-                    Ok(_) => tree[i].set_subtree(subtree),
+                    Err(e) => {
+                        return Err(e);
+                    }
+                    Ok(_) => {
+                        tree[i].set_subtree(subtree);
+                    }
                 }
             }
             i += 1;
@@ -354,13 +358,9 @@ impl Parser {
         {
             let position = tree[0].token.position;
             tree.insert(0, Self::_generate_mem0_call(position));
-            if tree[0].has_subtree() {
+            if tree[0].has_children() {
                 let base_level = tree.level();
-                tree[0]
-                    .subtree
-                    .as_mut()
-                    .unwrap()
-                    .relevel_from(base_level + 1);
+                tree[0].subtree.relevel_from(base_level + 1);
             }
         }
         Ok(())

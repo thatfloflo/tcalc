@@ -19,8 +19,8 @@ impl Ast {
     }
 
     pub fn push(&mut self, mut item: AstNode) {
-        if item.has_subtree() {
-            item.subtree.as_mut().unwrap().relevel_from(self._level);
+        if item.has_children() {
+            item.subtree.relevel_from(self._level);
         }
         self._vec.push(item)
     }
@@ -49,8 +49,8 @@ impl Ast {
     pub fn relevel_from(&mut self, base_level: usize) {
         self._level = base_level;
         for node in self._vec.iter_mut() {
-            if node.has_subtree() {
-                node.subtree.as_mut().unwrap().relevel_from(base_level + 1);
+            if node.has_children() {
+                node.subtree.relevel_from(base_level + 1);
             }
         }
     }
@@ -128,7 +128,7 @@ impl From<AstNode> for Ast {
 
 pub struct AstNode {
     pub token: Token,
-    pub subtree: Option<Ast>,
+    pub subtree: Ast,
     pub value: Option<Value>,
 }
 
@@ -136,7 +136,7 @@ impl AstNode {
     pub fn new_from_token(token: Token) -> Self {
         Self {
             token: token,
-            subtree: None,
+            subtree: Ast::default(),
             value: None,
         }
     }
@@ -144,40 +144,35 @@ impl AstNode {
     pub fn new_with_subtree(token: Token, subtree: Ast) -> Self {
         Self {
             token: token,
-            subtree: Some(subtree),
+            subtree: subtree,
             value: None,
         }
     }
 
-    pub fn has_subtree(&self) -> bool {
-        self.subtree.is_some()
+    pub fn has_children(&self) -> bool {
+        self.subtree.len() > 0
     }
 
-    pub fn set_subtree(&mut self, subtree: Ast) {
-        self.subtree = Some(subtree);
+    pub fn has_unvalued_children(&self) -> bool {
+        self.subtree.iter().any(|child| child.value.is_none())
+    }
+
+    pub fn set_subtree(&mut self, subtree: Ast) -> Ast {
+        std::mem::replace(&mut self.subtree, subtree)
     }
 }
 
 impl Display for AstNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Err(e) = write!(f, "- {}", self.token) {
-            return Err(e);
-        }
+        write!(f, "- {}", self.token)?;
         match &self.value {
             None => {}
             Some(value) => {
-                if let Err(e) = write!(f, " -> {}", value) {
-                    return Err(e);
-                }
+                write!(f, " -> {}", value)?;
             }
         }
-        match &self.subtree {
-            None => {}
-            Some(tree) => {
-                if let Err(e) = write!(f, "\n{}", tree) {
-                    return Err(e);
-                }
-            }
+        if self.has_children() {
+            write!(f, "\n{}", self.subtree)?;
         }
         write!(f, "")
     }

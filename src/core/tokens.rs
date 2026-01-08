@@ -16,6 +16,36 @@ pub enum TokenType {
     VariableIdentifier,
 }
 
+impl TokenType {
+    pub fn is_numeral(self) -> bool {
+        matches!(self, Self::Bitseq | Self:: Integer | Self::Rational)
+    }
+    pub fn is_operator(self) -> bool {
+        matches!(self, Self::AmbiguousOperator | Self::BinaryOperator | Self::UnaryOperator)
+    }
+    pub fn is_resolved_operator(self) -> bool {
+        matches!(self, Self::BinaryOperator | Self::UnaryOperator)
+    }
+    pub fn is_unary(self) -> bool {
+        matches!(self, Self::UnaryFunctionIdentifier | Self::UnaryOperator)
+    }
+    pub fn is_binary(self) -> bool {
+        matches!(self, Self::BinaryFunctionIdentifier | Self::BinaryOperator)
+    }
+    pub fn is_identifier(self) -> bool {
+        matches!(self, Self::BinaryFunctionIdentifier | Self::UnaryFunctionIdentifier | Self::VariableIdentifier)
+    }
+    pub fn is_function_identifier(self) -> bool {
+        matches!(self, Self::BinaryFunctionIdentifier | Self::UnaryFunctionIdentifier)
+    }
+    pub fn is_variable_identifier(self) -> bool {
+        self == Self::VariableIdentifier
+    }
+    pub fn is_terminal(self) -> bool {
+        matches!(self, Self::Bitseq | Self::Integer | Self::Rational | Self::VariableIdentifier)
+    }
+}
+
 impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

@@ -1,6 +1,10 @@
 pub mod ast;
-pub mod bitseq;
+pub mod bitseqs;
+pub mod decimals;
+pub mod environment;
 pub mod errors;
+pub mod evaluator;
+pub mod integers;
 pub mod parser;
 pub mod patterns;
 pub mod tokens;
