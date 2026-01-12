@@ -3,12 +3,11 @@ use std::convert::From;
 use std::fmt::Display;
 
 use crate::core::bitseqs::Bitseq;
+use crate::core::decimals::Decimal;
 use crate::core::errors::{ConversionError, InvalidOperationError, SyntaxError};
+use crate::core::integers::Integer;
 use crate::core::parser::Position;
 use crate::core::patterns;
-
-pub type Integer = i128;
-pub type Decimal = f64;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ValueType {
@@ -90,7 +89,7 @@ impl Value {
             '0'..='9' => (c as u8) - b'0',
             'a'..='z' => (c as u8) - b'a' + 10,
             'A'..='Z' => (c as u8) - b'A' + 10,
-            _ => panic!("Invalid character for digit or exceeded maximal base for conversion")
+            _ => panic!("Invalid character for digit or exceeded maximal base for conversion"),
         }
     }
 
@@ -109,13 +108,17 @@ impl Value {
 
         if let Some(frac) = frac_part {
             let base = base as f64;
-            let mut frac_value =  0f64;
+            let mut frac_value = 0f64;
             let mut divisor = base;
             for c in frac.chars() {
                 frac_value += (Self::_char_to_val(c) as f64) / divisor;
                 divisor *= base;
             }
-            return format!("{}.{}", int_value, frac_value.to_string().split('.').nth(1).unwrap_or("0"))
+            return format!(
+                "{}.{}",
+                int_value,
+                frac_value.to_string().split('.').nth(1).unwrap_or("0")
+            );
         }
 
         format!("{}", int_value)
@@ -186,7 +189,7 @@ impl Value {
         Self {
             type_: ValueType::Integer,
             val_integer: i,
-            val_decimal: 0.0,
+            val_decimal: Decimal::ZERO,
             val_bitseq: Bitseq::ZERO,
         }
     }
@@ -194,7 +197,7 @@ impl Value {
     pub fn from_decimal(d: Decimal) -> Self {
         Self {
             type_: ValueType::Decimal,
-            val_integer: 0,
+            val_integer: Integer::ZERO,
             val_decimal: d,
             val_bitseq: Bitseq::ZERO,
         }
@@ -203,8 +206,8 @@ impl Value {
     pub fn from_bitseq(b: Bitseq) -> Self {
         Self {
             type_: ValueType::Bitseq,
-            val_integer: 0,
-            val_decimal: 0.0,
+            val_integer: Integer::ZERO,
+            val_decimal: Decimal::ZERO,
             val_bitseq: b,
         }
     }
@@ -215,59 +218,51 @@ impl Value {
         }
         if self.type_ == ValueType::Bitseq {
             if into_type == ValueType::Integer {
-                self.val_integer = self.val_bitseq.try_into()?;
-                self.val_bitseq = Bitseq::ZERO;
-                self.type_ = into_type;
-                return Ok(());
+                self.val_integer = self.val_bitseq.into();
             }
             if into_type == ValueType::Decimal {
-                self.val_decimal = self.val_bitseq.try_into()?;
-                self.val_bitseq = Bitseq::ZERO;
-                self.type_ = into_type;
-                return Ok(());
+                self.val_decimal = self.val_bitseq.into();
             }
+            self.val_bitseq = Bitseq::ZERO;
+            self.type_ = into_type;
+            return Ok(());
         }
         if self.type_ == ValueType::Integer {
             if into_type == ValueType::Bitseq {
-                self.val_bitseq = Bitseq::try_from(self.val_integer.clone())?;
-                self.val_integer = 0;
-                self.type_ = into_type;
-                return Ok(());
-            }
-            if into_type == ValueType::Decimal {
-                let converted = self.val_integer as Decimal;
-                if converted as Integer == self.val_integer {
-                    self.val_decimal = converted;
-                    self.val_integer = 0;
-                    self.type_ = into_type;
-                    return Ok(());
-                } else {
-                    return Err(ConversionError::new(
-                        "Integer too wide to convert to Decimal",
-                    ));
+                match Bitseq::try_from(self.val_integer.clone()) {
+                    Err(e) => return Err(e),
+                    Ok(converted) => {
+                        self.val_bitseq = converted;
+                    }
                 }
             }
+            if into_type == ValueType::Decimal {
+                self.val_decimal = self.val_integer.into();
+            }
+            self.val_integer = Integer::ZERO;
+            self.type_ = into_type;
+            return Ok(());
         }
         if self.type_ == ValueType::Decimal {
             if into_type == ValueType::Bitseq {
-                self.val_bitseq = Bitseq::try_from(self.val_decimal.clone())?;
-                self.val_decimal = 0.0;
-                self.type_ = into_type;
-                return Ok(());
-            }
-            if into_type == ValueType::Integer {
-                let converted = self.val_decimal as Integer;
-                if converted as Decimal == self.val_decimal {
-                    self.val_integer = converted;
-                    self.val_decimal = 0.0;
-                    self.type_ = into_type;
-                    return Ok(());
-                } else {
-                    return Err(ConversionError::new(
-                        "Decimal could not be losslessly converted to Integer",
-                    ));
+                match Bitseq::try_from(self.val_decimal.clone()) {
+                    Err(e) => return Err(e),
+                    Ok(converted) => {
+                        self.val_bitseq = converted;
+                    }
                 }
             }
+            if into_type == ValueType::Integer {
+                match Integer::try_from(self.val_decimal.clone()) {
+                    Err(e) => return Err(e),
+                    Ok(converted) => {
+                        self.val_integer = converted;
+                    }
+                }
+            }
+            self.val_decimal = Decimal::ZERO;
+            self.type_ = into_type;
+            return Ok(());
         }
         Err(ConversionError::new(format!(
             "No known conversion path to mutate {} to {}",
@@ -280,64 +275,79 @@ impl Value {
     }
 
     pub fn unary_neg(&self) -> Self {
-        let mut result = self.clone();
-        if result.type_ == ValueType::Bitseq {
-            result.try_mutate_into(ValueType::Integer).unwrap();
+        match self.type_ {
+            ValueType::Bitseq => Self::from(-self.val_bitseq),
+            ValueType::Decimal => Self::from(-self.val_decimal),
+            ValueType::Integer => Self::from(-self.val_integer),
         }
-        match result.type_ {
-            ValueType::Bitseq => { /* unreachable */ },
-            ValueType::Decimal => { result.val_decimal = -result.val_decimal; }
-            ValueType::Integer => { result.val_integer = -result.val_integer; }
-        }
-        result
     }
 
     pub fn factorial(&self) -> Result<Self, InvalidOperationError> {
-        let mut result = self.clone();
-        if result.type_ == ValueType::Bitseq {
-            result.try_mutate_into(ValueType::Integer).unwrap();
-        }
-        if result.type_ == ValueType::Integer {
-            match result.val_integer.signum() {
-                0 | 1 => {
-                    result.val_integer = match (1..result.val_integer).try_fold(result.val_integer, Integer::checked_mul) {
-                        Some(v) => v,
-                        None => { return Err(InvalidOperationError::new("Factorial too large to fit Integer")); },
-                    };
-                }
-                _ => { // == -1
-                    return Err(InvalidOperationError::new(
-                        "Factorial operation undefined for negative integers",
-                    ));
-                },
-            }
+        let mut result = if self.type_ == ValueType::Bitseq {
+            Self::from(Integer::from(self.val_bitseq))
         } else {
-            // == ValueType::Rational
-            todo!();
-            // match result.val_decimal.signum() {
-            //     0.0 | 1.0 => {
-            //         //...
-            //     },
-            //     -1 => {
-            //         return Err(InvalidOperationError::new("Factorial operation undefined for negative integers"));
-            //     },
-            // }
+            self.clone()
+        };
+        match result.type_ {
+            ValueType::Bitseq => { /* Unreachable */},
+            ValueType::Decimal => { todo!("Implement Gamma function")},
+            ValueType::Integer => { result.val_integer = result.val_integer.factorial() }
         }
         Ok(result)
+        // let mut result = self.clone();
+        // if result.type_ == ValueType::Bitseq {
+        //     result.try_mutate_into(ValueType::Integer).unwrap();
+        // }
+        // if result.type_ == ValueType::Integer {
+        //     match result.val_integer.signum() {
+        //         0 | 1 => {
+        //             result.val_integer = match (1..result.val_integer)
+        //                 .try_fold(result.val_integer, Integer::checked_mul)
+        //             {
+        //                 Some(v) => v,
+        //                 None => {
+        //                     return Err(InvalidOperationError::new(
+        //                         "Factorial too large to fit Integer",
+        //                     ));
+        //                 }
+        //             };
+        //         }
+        //         _ => {
+        //             // == -1
+        //             return Err(InvalidOperationError::new(
+        //                 "Factorial operation undefined for negative integers",
+        //             ));
+        //         }
+        //     }
+        // } else {
+        //     // == ValueType::Rational
+        //     todo!();
+        //     // match result.val_decimal.signum() {
+        //     //     0.0 | 1.0 => {
+        //     //         //...
+        //     //     },
+        //     //     -1 => {
+        //     //         return Err(InvalidOperationError::new("Factorial operation undefined for negative integers"));
+        //     //     },
+        //     // }
+        // }
+        // Ok(result)
     }
 
     pub fn logical_neg(&self) -> Self {
         let is_zero = match self.type_ {
-            ValueType::Bitseq => { self.val_bitseq.is_zero() },
-            ValueType::Decimal => { self.val_decimal == 0.0 },
-            ValueType::Integer => { self.val_integer == 0 },
+            ValueType::Bitseq => self.val_bitseq.is_zero(),
+            ValueType::Decimal => self.val_decimal == Decimal::ZERO,
+            ValueType::Integer => self.val_integer == Integer::ZERO,
         };
-        Self::from_integer(is_zero.into())
+        Self::from(Integer::from(is_zero))
     }
 
     pub fn bitwise_neg(&self) -> Result<Self, ConversionError> {
         if self.type_ != ValueType::Bitseq {
-            return Err(ConversionError::new("Cannot apply bitwise negation to a value other than a bit-sequence (Bitseq)"));
+            return Err(ConversionError::new(
+                "Cannot apply bitwise negation to a value other than a bit-sequence (Bitseq)",
+            ));
         }
         let mut result = self.clone();
         result.val_bitseq.neg_mut();
@@ -371,21 +381,12 @@ impl TryFrom<&str> for Value {
     }
 }
 
-impl TryInto<Decimal> for Value {
-    type Error = ConversionError;
-
-    fn try_into(self) -> Result<Decimal, Self::Error> {
+impl Into<Decimal> for Value {
+    fn into(self) -> Decimal {
         match self.type_ {
-            ValueType::Bitseq => self.val_bitseq.try_into(),
-            ValueType::Decimal => Ok(self.val_decimal),
-            ValueType::Integer => {
-                let converted = self.val_integer as Decimal;
-                if converted as Integer == self.val_integer {
-                    Ok(converted)
-                } else {
-                    Err(ConversionError::new("Integer too wide to convert to Decimal"))
-                }
-            },
+            ValueType::Bitseq => self.val_bitseq.into(),
+            ValueType::Decimal => self.val_decimal,
+            ValueType::Integer => self.val_integer.into(),
         }
     }
 }
@@ -395,24 +396,9 @@ impl TryInto<Integer> for Value {
 
     fn try_into(self) -> Result<Integer, Self::Error> {
         match self.type_ {
-            ValueType::Bitseq => self.val_bitseq.try_into(),
+            ValueType::Bitseq => Ok(self.val_bitseq.into()),
             ValueType::Integer => Ok(self.val_integer),
-            ValueType::Decimal => {
-                let converted = self.val_decimal as Integer;
-                if converted as Decimal == self.val_decimal {
-                    Ok(converted)
-                } else {
-                    Err(ConversionError::new(
-                    "Cannot convert Decimal with with fractional part to Integer losslessly",
-                ))
-                }
-            },
-            // ValueType::Decimal => match self.val_decimal.try_into() {
-            //     Ok(v) => Ok(v),
-            //     Err(_) => Err(ConversionError::new(
-            //         "Cannot convert Rational with denominator > 1 to Integer losslessly",
-            //     )),
-            // },
+            ValueType::Decimal => self.val_decimal.try_into(),
         }
     }
 }

@@ -1,8 +1,10 @@
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Display;
+use std::ops::Neg;
 
 use fastnum::I512;
 
-use crate::core::bitseqs::Bitseq;
+use crate::core::bitseqs::{Bitseq, BitseqT};
 use crate::core::decimals::Decimal;
 use crate::core::errors::{ConversionError, SyntaxError};
 use crate::core::parser::Position;
@@ -15,8 +17,22 @@ pub struct Integer {
 }
 
 impl Integer {
-    const ZERO: Self = Self {
+    pub const ZERO: Self = Self {
         value: IntegerT::ZERO,
+    };
+
+    pub const BITSEQ_MAX_VALUE: Self = Self {
+        // Evaluates to 340_282_366_920_938_463_463_374_607_431_768_211_455 == u128::MAX
+        value: IntegerT::from_digits([
+            18446744073709551615,
+            18446744073709551615,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ]),
     };
 
     pub fn from_str_radix<S: AsRef<str>>(src: S, radix: u32) -> Result<Self, SyntaxError> {
@@ -31,6 +47,16 @@ impl Integer {
 
     pub fn inner_value(self) -> IntegerT {
         self.value
+    }
+
+    pub fn factorial(self) -> Self {
+        let mut result = IntegerT::ONE;
+        let mut i = IntegerT::ZERO;
+        while i <= self.value {
+            i = i + IntegerT::ONE;
+            result = result * i;
+        }
+        Self{ value: result }
     }
 }
 
@@ -54,6 +80,22 @@ impl From<Bitseq> for Integer {
     }
 }
 
+impl From<BitseqT> for Integer {
+    fn from(value: BitseqT) -> Self {
+        Self {
+            value: IntegerT::from_u128(value).unwrap(),
+        }
+    }
+}
+
+impl From<bool> for Integer {
+    fn from(value: bool) -> Self {
+        Self {
+            value: if value { IntegerT::ONE } else { IntegerT::ZERO }
+        }
+    }
+}
+
 impl TryFrom<Decimal> for Integer {
     type Error = ConversionError;
 
@@ -71,5 +113,33 @@ impl TryFrom<Decimal> for Integer {
                 "Decimal too large to convert to Integer",
             )),
         }
+    }
+}
+
+impl Ord for Integer {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.value.cmp(&other.value)
+    }
+}
+
+impl PartialOrd for Integer {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Integer {}
+
+impl PartialEq for Integer {
+    fn eq(&self, other: &Self) -> bool {
+        self.value.eq(&other.value)
+    }
+}
+
+impl Neg for Integer {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self { value: -self.value }
     }
 }

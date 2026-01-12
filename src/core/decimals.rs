@@ -1,11 +1,13 @@
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Display;
+use std::ops::Neg;
 use std::str::FromStr;
 
-use fastnum::{D512, I512};
 use fastnum::decimal::{Context, ParseError};
+use fastnum::{D512, I512};
 
-use crate::core::integers::Integer;
 use crate::core::bitseqs::Bitseq;
+use crate::core::integers::Integer;
 
 pub const DECIMAL_CONTEXT: Context = Context::default();
 
@@ -13,14 +15,22 @@ pub type DecimalT = D512;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Decimal {
-    value: DecimalT
+    value: DecimalT,
 }
 
 impl Decimal {
-    pub const ZERO: Self = Self { value: DecimalT::ZERO.with_ctx(DECIMAL_CONTEXT) };
-    pub const PI: Self = Self { value: DecimalT::PI.with_ctx(DECIMAL_CONTEXT) };
-    pub const TAU: Self = Self { value: DecimalT::TAU.with_ctx(DECIMAL_CONTEXT) };
-    pub const E: Self = Self { value: DecimalT::E.with_ctx(DECIMAL_CONTEXT) };
+    pub const ZERO: Self = Self {
+        value: DecimalT::ZERO.with_ctx(DECIMAL_CONTEXT),
+    };
+    pub const PI: Self = Self {
+        value: DecimalT::PI.with_ctx(DECIMAL_CONTEXT),
+    };
+    pub const TAU: Self = Self {
+        value: DecimalT::TAU.with_ctx(DECIMAL_CONTEXT),
+    };
+    pub const E: Self = Self {
+        value: DecimalT::E.with_ctx(DECIMAL_CONTEXT),
+    };
 
     pub fn inner_value(self) -> DecimalT {
         self.value
@@ -53,7 +63,9 @@ impl Into<DecimalT> for Decimal {
 
 impl From<u128> for Decimal {
     fn from(value: u128) -> Self {
-        Self { value: DecimalT::from_u128(value).unwrap() }
+        Self {
+            value: DecimalT::from_u128(value).unwrap(),
+        }
     }
 }
 
@@ -67,7 +79,11 @@ impl From<Integer> for Decimal {
     fn from(value: Integer) -> Self {
         use fastnum::decimal::Sign;
         let value: I512 = value.into();
-        let sign = if value.is_negative() { Sign::Minus } else { Sign::Plus };
+        let sign = if value.is_negative() {
+            Sign::Minus
+        } else {
+            Sign::Plus
+        };
         let digits = value.abs().to_bits();
         let value = DecimalT::from_parts(digits, 0, sign, DECIMAL_CONTEXT);
         Self { value: value }
@@ -82,5 +98,33 @@ impl FromStr for Decimal {
             Ok(value) => Ok(Self { value }),
             Err(e) => Err(e),
         }
+    }
+}
+
+impl Ord for Decimal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.value.cmp(&other.value)
+    }
+}
+
+impl PartialOrd for Decimal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Decimal {}
+
+impl PartialEq for Decimal {
+    fn eq(&self, other: &Self) -> bool {
+        self.value.eq(&other.value)
+    }
+}
+
+impl Neg for Decimal {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self { value: -self.value }
     }
 }

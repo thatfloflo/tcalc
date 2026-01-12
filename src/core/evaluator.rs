@@ -1,4 +1,5 @@
 use crate::core::ast::{Ast, AstNode};
+use crate::core::bitseqs::Bitseq;
 use crate::core::environment::Environment;
 use crate::core::errors::SyntaxError;
 use crate::core::tokens::TokenType;
@@ -13,10 +14,10 @@ impl Evaluator {
         let mut n = Self::default();
         n.environment
             .variables
-            .set("foo", Value::from(i128::from(100)));
+            .set("foo", Value::from(Bitseq::ZERO));
         n.environment
             .variables
-            .set("D", Value::from(i128::from(1)));
+            .set("D", Value::from(Bitseq::ONE));
         n
     }
 
