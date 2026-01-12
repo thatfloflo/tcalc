@@ -10,7 +10,7 @@ pub enum TokenType {
     Bitseq,
     Expression,
     Integer,
-    Rational,
+    Decimal,
     UnaryFunctionIdentifier,
     UnaryOperator,
     VariableIdentifier,
@@ -18,7 +18,7 @@ pub enum TokenType {
 
 impl TokenType {
     pub fn is_numeral(self) -> bool {
-        matches!(self, Self::Bitseq | Self:: Integer | Self::Rational)
+        matches!(self, Self::Bitseq | Self:: Integer | Self::Decimal)
     }
     pub fn is_operator(self) -> bool {
         matches!(self, Self::AmbiguousOperator | Self::BinaryOperator | Self::UnaryOperator)
@@ -42,7 +42,7 @@ impl TokenType {
         self == Self::VariableIdentifier
     }
     pub fn is_terminal(self) -> bool {
-        matches!(self, Self::Bitseq | Self::Integer | Self::Rational | Self::VariableIdentifier)
+        matches!(self, Self::Bitseq | Self::Integer | Self::Decimal | Self::VariableIdentifier)
     }
 }
 
@@ -58,7 +58,7 @@ impl Display for TokenType {
                 Self::Bitseq => "Bitseq",
                 Self::Expression => "Expression",
                 Self::Integer => "Integer",
-                Self::Rational => "Rational",
+                Self::Decimal => "Decimal",
                 Self::UnaryFunctionIdentifier => "UnaryFunctionIdentifier",
                 Self::UnaryOperator => "UnaryOperator",
                 Self::VariableIdentifier => "VariableIdentifier",

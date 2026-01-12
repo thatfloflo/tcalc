@@ -33,7 +33,7 @@ fn main() {
     //let input = "+ ~ sqrt ¬ + -test! \\blah foo := 0b0010010 - 2.55 0D587 0b010.01 (2 * 7)";
     let mut parser = Parser::new();
     let mut evaluator = Evaluator::new();
-    let input = "~0b1010101";
+    let input = "70.0!";
     println!("INPUT: {}", input);
     let mut ast = parser.parse(input, 0, 0).unwrap();
     evaluator.evaluate(&mut ast).unwrap();

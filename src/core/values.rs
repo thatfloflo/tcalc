@@ -41,14 +41,14 @@ pub struct Value {
 impl Value {
     fn _check_str_and_get_base<S: AsRef<str>>(s: S) -> Option<u8> {
         let s = s.as_ref();
-        if patterns::BINARY_INTEGER.is_match(s) || patterns::BINARY_RATIONAL.is_match(s) {
+        if patterns::BINARY_INTEGER.is_match(s) || patterns::BINARY_DECIMAL.is_match(s) {
             Some(2)
-        } else if patterns::OCTAL_INTEGER.is_match(s) || patterns::OCTAL_RATIONAL.is_match(s) {
+        } else if patterns::OCTAL_INTEGER.is_match(s) || patterns::OCTAL_DECIMAL.is_match(s) {
             Some(8)
-        } else if patterns::DECIMAL_INTEGER.is_match(s) || patterns::DECIMAL_RATIONAL.is_match(s) {
+        } else if patterns::DECIMAL_INTEGER.is_match(s) || patterns::DECIMAL_DECIMAL.is_match(s) {
             Some(10)
         } else if patterns::HEXADECIMAL_INTEGER.is_match(s)
-            || patterns::HEXADECIMAL_RATIONAL.is_match(s)
+            || patterns::HEXADECIMAL_DECIMAL.is_match(s)
         {
             Some(16)
         } else {
@@ -282,58 +282,6 @@ impl Value {
         }
     }
 
-    pub fn factorial(&self) -> Result<Self, InvalidOperationError> {
-        let mut result = if self.type_ == ValueType::Bitseq {
-            Self::from(Integer::from(self.val_bitseq))
-        } else {
-            self.clone()
-        };
-        match result.type_ {
-            ValueType::Bitseq => { /* Unreachable */},
-            ValueType::Decimal => { todo!("Implement Gamma function")},
-            ValueType::Integer => { result.val_integer = result.val_integer.factorial() }
-        }
-        Ok(result)
-        // let mut result = self.clone();
-        // if result.type_ == ValueType::Bitseq {
-        //     result.try_mutate_into(ValueType::Integer).unwrap();
-        // }
-        // if result.type_ == ValueType::Integer {
-        //     match result.val_integer.signum() {
-        //         0 | 1 => {
-        //             result.val_integer = match (1..result.val_integer)
-        //                 .try_fold(result.val_integer, Integer::checked_mul)
-        //             {
-        //                 Some(v) => v,
-        //                 None => {
-        //                     return Err(InvalidOperationError::new(
-        //                         "Factorial too large to fit Integer",
-        //                     ));
-        //                 }
-        //             };
-        //         }
-        //         _ => {
-        //             // == -1
-        //             return Err(InvalidOperationError::new(
-        //                 "Factorial operation undefined for negative integers",
-        //             ));
-        //         }
-        //     }
-        // } else {
-        //     // == ValueType::Rational
-        //     todo!();
-        //     // match result.val_decimal.signum() {
-        //     //     0.0 | 1.0 => {
-        //     //         //...
-        //     //     },
-        //     //     -1 => {
-        //     //         return Err(InvalidOperationError::new("Factorial operation undefined for negative integers"));
-        //     //     },
-        //     // }
-        // }
-        // Ok(result)
-    }
-
     pub fn logical_neg(&self) -> Self {
         let is_zero = match self.type_ {
             ValueType::Bitseq => self.val_bitseq.is_zero(),
@@ -344,13 +292,25 @@ impl Value {
     }
 
     pub fn bitwise_neg(&self) -> Result<Self, ConversionError> {
-        if self.type_ != ValueType::Bitseq {
-            return Err(ConversionError::new(
-                "Cannot apply bitwise negation to a value other than a bit-sequence (Bitseq)",
-            ));
-        }
         let mut result = self.clone();
+        if result.type_ != ValueType::Bitseq {
+            result.try_mutate_into(ValueType::Bitseq)?;
+        }
         result.val_bitseq.neg_mut();
+        Ok(result)
+    }
+
+    pub fn factorial(&self) -> Result<Self, InvalidOperationError> {
+        let mut result = if self.type_ == ValueType::Bitseq {
+            Self::from(Integer::from(self.val_bitseq))
+        } else {
+            self.clone()
+        };
+        match result.type_ {
+            ValueType::Bitseq => { /* Unreachable */ }
+            ValueType::Decimal => result.val_decimal = (result.val_decimal + Decimal::ONE).gamma()?,
+            ValueType::Integer => result.val_integer = result.val_integer.factorial()?,
+        }
         Ok(result)
     }
 }
@@ -420,7 +380,7 @@ impl Display for Value {
         let vtype = match self.type_ {
             ValueType::Bitseq => "Bitseq",
             ValueType::Integer => "Integer",
-            ValueType::Decimal => "Rational",
+            ValueType::Decimal => "Decimal",
         };
         let val = match self.type_ {
             ValueType::Bitseq => self.val_bitseq.to_string(),

@@ -157,7 +157,7 @@ impl Parser {
                 Self::_copy_while(&input, patterns::NUMERAL_INTERNAL_CHARS, i + 1, &mut buf);
                 let token_type: TokenType;
                 if buf.contains(&'.') || buf.contains(&',') {
-                    token_type = TokenType::Rational;
+                    token_type = TokenType::Decimal;
                 } else if buf.starts_with(&['0', 'b']) {
                     token_type = TokenType::Bitseq;
                 } else {
@@ -256,7 +256,7 @@ impl Parser {
                 TokenType::Bitseq
                 | TokenType::Expression
                 | TokenType::Integer
-                | TokenType::Rational
+                | TokenType::Decimal
                 | TokenType::VariableIdentifier => true,
                 _ => false,
             };
@@ -265,7 +265,7 @@ impl Parser {
                 TokenType::Bitseq
                 | TokenType::Expression
                 | TokenType::Integer
-                | TokenType::Rational
+                | TokenType::Decimal
                 | TokenType::UnaryFunctionIdentifier
                 | TokenType::VariableIdentifier => true,
                 _ => false,
@@ -297,7 +297,7 @@ impl Parser {
                         TokenType::Bitseq
                         | TokenType::Expression
                         | TokenType::Integer
-                        | TokenType::Rational
+                        | TokenType::Decimal
                         | TokenType::VariableIdentifier => true,
                         _ => false,
                     };
@@ -324,7 +324,7 @@ impl Parser {
                         | TokenType::Bitseq
                         | TokenType::Expression
                         | TokenType::Integer
-                        | TokenType::Rational
+                        | TokenType::Decimal
                         | TokenType::UnaryFunctionIdentifier
                         | TokenType::VariableIdentifier => true,
                         _ => false,

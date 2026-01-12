@@ -1,12 +1,13 @@
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Display;
-use std::ops::Neg;
+use std::ops::{Add, Neg};
 use std::str::FromStr;
 
 use fastnum::decimal::{Context, ParseError};
 use fastnum::{D512, I512};
 
 use crate::core::bitseqs::Bitseq;
+use crate::core::errors::InvalidOperationError;
 use crate::core::integers::Integer;
 
 pub const DECIMAL_CONTEXT: Context = Context::default();
@@ -22,6 +23,9 @@ impl Decimal {
     pub const ZERO: Self = Self {
         value: DecimalT::ZERO.with_ctx(DECIMAL_CONTEXT),
     };
+    pub const ONE: Self = Self {
+        value: DecimalT::ONE.with_ctx(DECIMAL_CONTEXT),
+    };
     pub const PI: Self = Self {
         value: DecimalT::PI.with_ctx(DECIMAL_CONTEXT),
     };
@@ -31,9 +35,39 @@ impl Decimal {
     pub const E: Self = Self {
         value: DecimalT::E.with_ctx(DECIMAL_CONTEXT),
     };
+    const MAX_GAMMA: Self = Self {
+        value: DecimalT::from_i32(9_313).with_ctx(DECIMAL_CONTEXT),
+    };
 
     pub fn inner_value(self) -> DecimalT {
         self.value
+    }
+
+    pub fn gamma(self) -> Result<Self, InvalidOperationError> {
+        // Uses Nemes' improved transformation of the Stirling-De Moivre Approximation.
+        // See Nemes, G. (2010) New asymptotic expansion for the Gamma function,
+        // Archiv der Mathematik, 95: 161-169. doi:10.1007/s00013-010-0146-9
+        // gamma(x) = ((1/e) * (x + (1 / ((12 * x) - (1/(10 * x))))))^x * (sqrt((2*pi)/x))
+        if self <= Self::ZERO {
+            return Err(InvalidOperationError::new(
+                "Gamma undefined for values <= 0.0",
+            ));
+        }
+        if self > Self::MAX_GAMMA {
+            return Err(InvalidOperationError::new(format!(
+                "Gamma of value > {} exceeds size of Decimal type",
+                Self::MAX_GAMMA
+            )));
+        }
+        const TWELVE: DecimalT = DecimalT::from_i32(12).with_ctx(DECIMAL_CONTEXT);
+        const RECIP_TEN: DecimalT = DecimalT::ONE
+            .div(DecimalT::from_i32(10))
+            .with_ctx(DECIMAL_CONTEXT);
+        let mut approx = (self.value / DecimalT::E).pow(self.value);
+        approx *= (DecimalT::TAU / self.value).sqrt();
+        approx *= (DecimalT::ONE + (DecimalT::ONE / (TWELVE * self.value.powi(2) - RECIP_TEN)))
+            .pow(self.value);
+        Ok(Self { value: approx })
     }
 }
 
@@ -126,5 +160,15 @@ impl Neg for Decimal {
 
     fn neg(self) -> Self::Output {
         Self { value: -self.value }
+    }
+}
+
+impl Add for Decimal {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            value: self.value + rhs.value,
+        }
     }
 }

@@ -8,18 +8,18 @@ macro_rules! vec_into {
 lazy_static! {
     pub static ref BASE_PREFIX: Regex = Regex::new(r"^0[bBdDoOxX]").unwrap();
     pub static ref BINARY_INTEGER: Regex = Regex::new(r"^0[bB][01_]*[01]$").unwrap();
-    pub static ref BINARY_RATIONAL: Regex =
+    pub static ref BINARY_DECIMAL: Regex =
         Regex::new(r"^0[bB][01_]*[.,](?:[01_]*[01])?$").unwrap();
     pub static ref DECIMAL_INTEGER: Regex =
         Regex::new(r"^(?:0[dD]_?[0-9]|[0-9])(?:[0-9_]*[0-9])?$").unwrap();
-    pub static ref DECIMAL_RATIONAL: Regex =
+    pub static ref DECIMAL_DECIMAL: Regex =
         Regex::new(r"^(?:0[dD]_?)?(?:[0-9]*|[0-9][0-9_]*)[.,](?:[0-9]*|[0-9_]*[0-9])$").unwrap();
     pub static ref HEXADECIMAL_INTEGER: Regex =
         Regex::new(r"^0[xX][0-9a-fA-F_]*[0-9a-fA-F]$").unwrap();
-    pub static ref HEXADECIMAL_RATIONAL: Regex =
+    pub static ref HEXADECIMAL_DECIMAL: Regex =
         Regex::new(r"^0[xX][0-9a-fA-F_]*[.,](?:[0-9a-fA-F_]*[0-9a-fA-F])?$").unwrap();
     pub static ref OCTAL_INTEGER: Regex = Regex::new(r"^0[oO][0-7_]*[0-7]$").unwrap();
-    pub static ref OCTAL_RATIONAL: Regex =
+    pub static ref OCTAL_DECIMAL: Regex =
         Regex::new(r"^0[oO][0-7_]*[.,](?:[0-7_]*[0-7])?$").unwrap();
     pub static ref BINARY_OPERATOR_PRECEDENCE: Vec<Vec<String>> = vec![
         vec_into!["^"],                          // Exponentiation

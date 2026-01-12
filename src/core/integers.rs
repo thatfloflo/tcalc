@@ -1,12 +1,12 @@
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Display;
-use std::ops::Neg;
+use std::ops::{Add, Neg};
 
 use fastnum::I512;
 
 use crate::core::bitseqs::{Bitseq, BitseqT};
 use crate::core::decimals::Decimal;
-use crate::core::errors::{ConversionError, SyntaxError};
+use crate::core::errors::{ConversionError, InvalidOperationError, SyntaxError};
 use crate::core::parser::Position;
 
 pub type IntegerT = I512;
@@ -19,6 +19,14 @@ pub struct Integer {
 impl Integer {
     pub const ZERO: Self = Self {
         value: IntegerT::ZERO,
+    };
+
+    pub const ONE: Self = Self {
+        value: IntegerT::ONE,
+    };
+
+    const MAX_FACTORIAL: Self = Self {
+        value: IntegerT::from_u8(97u8),
     };
 
     pub const BITSEQ_MAX_VALUE: Self = Self {
@@ -49,14 +57,25 @@ impl Integer {
         self.value
     }
 
-    pub fn factorial(self) -> Self {
+    pub fn factorial(self) -> Result<Self, InvalidOperationError> {
+        if self < Self::ZERO {
+            return Err(InvalidOperationError::new(
+                "Factorial undefined for values < 0",
+            ));
+        }
+        if self > Self::MAX_FACTORIAL {
+            return Err(InvalidOperationError::new(format!(
+                "Factorial of value > {} exceeds size of Integer type, consider approximating the factorial via `gamma (x + 1)`",
+                Self::MAX_FACTORIAL
+            )));
+        }
         let mut result = IntegerT::ONE;
         let mut i = IntegerT::ZERO;
-        while i <= self.value {
+        while i < self.value {
             i = i + IntegerT::ONE;
             result = result * i;
         }
-        Self{ value: result }
+        Ok(Self { value: result })
     }
 }
 
@@ -91,7 +110,7 @@ impl From<BitseqT> for Integer {
 impl From<bool> for Integer {
     fn from(value: bool) -> Self {
         Self {
-            value: if value { IntegerT::ONE } else { IntegerT::ZERO }
+            value: if value { IntegerT::ONE } else { IntegerT::ZERO },
         }
     }
 }
@@ -141,5 +160,15 @@ impl Neg for Integer {
 
     fn neg(self) -> Self::Output {
         Self { value: -self.value }
+    }
+}
+
+impl Add for Integer {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            value: self.value + rhs.value,
+        }
     }
 }
