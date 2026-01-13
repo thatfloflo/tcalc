@@ -40,7 +40,7 @@ pub const NUMERAL_INTERNAL_CHARS: &str = "0123456789.,abcdefoxABCDEFOX_";
 pub const IGNORABLE_WHITESPACE_CHARS: &str = " \t";
 pub const OPERATOR_INITIAL_CHARS: &str = "+-!^*/%¬<>=:&|?~";
 pub const OPERATOR_INTERNAL_CHARS: &str = OPERATOR_INITIAL_CHARS;
-pub const IDENTIFIER_INITIAL_CHARS: &str = "abcdefghojklmnopqrstuvwxyzABCDEFGHOJKLMNOPQRSTUVWXYZ\\";
+pub const IDENTIFIER_INITIAL_CHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\\";
 pub const IDENTIFIER_INTERNAL_CHARS: &str = IDENTIFIER_INITIAL_CHARS;
 
 pub const AMBIGUOUS_OPERATORS: &[&str] = &["+", "-"];

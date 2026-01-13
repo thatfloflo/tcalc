@@ -2,9 +2,8 @@
 
 mod core;
 
-use crate::core::parser::Parser;
 use crate::core::evaluator::Evaluator;
-
+use crate::core::parser::Parser;
 
 fn main() {
     //let input = "0b1001101.100101 + 83_382_292_22 / 0b000101 * (0xDEADBEEF0 - D17,343 (28.1 + 3)) + sqrt(1+foo)";
@@ -33,11 +32,10 @@ fn main() {
     //let input = "+ ~ sqrt ¬ + -test! \\blah foo := 0b0010010 - 2.55 0D587 0b010.01 (2 * 7)";
     let mut parser = Parser::new();
     let mut evaluator = Evaluator::new();
-    let input = "70.0!";
+    let input = "pi!";
     println!("INPUT: {}", input);
     let mut ast = parser.parse(input, 0, 0).unwrap();
     evaluator.evaluate(&mut ast).unwrap();
-    //resolve(&mut parse_tree).unwrap();
     println!("===== Abstract Syntax Tree =====");
     println!("{}", ast);
 }

@@ -48,7 +48,7 @@ impl Evaluator {
         if node.token.type_.is_unary() {
             if node.subtree.len() != 1 {
                 panic!(
-                    "Attempting to evaluate unary operator that has {} children (expected 1)",
+                    "Attempting to evaluate unary operation that has {} children (expected 1)",
                     node.subtree.len()
                 )
             }
@@ -57,6 +57,17 @@ impl Evaluator {
             } else { // node.token.type_.is_function_identifier()
             }
         } else { // node.token.type_.is_binary()
+            if node.subtree.len() != 2 {
+                panic!(
+                    "Attempting to evaluate binary operation that has {} children (expected 2)",
+                    node.subtree.len()
+                )
+            }
+            if node.token.type_.is_operator() {
+                self._evaluate_binary_operator(node).unwrap();
+            } else { // node.token.type_.is_function_identifier()
+                self._evaluate_binary_function_call(node).unwrap();
+            }
         }
         Ok(())
     }
@@ -116,6 +127,7 @@ impl Evaluator {
     }
 
     fn _evaluate_unary_operator(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+        // pub const UNARY_OPERATORS: &[&str] = &["+", "-", "!", "¬", "~"];
         let operand = node.subtree[0].value.as_ref().unwrap();
         let operator = node.token.content_to_string();
         let result = match operator.as_str() {
@@ -135,11 +147,23 @@ impl Evaluator {
         Ok(())
     }
 
-    // pub const UNARY_OPERATORS: &[&str] = &["+", "-", "!", "¬", "~"];
-    // pub const BINARY_OPERATORS: &[&str] = &[
-    //     "^", "*", "/", "%", "+", "-", "<=>", "<=", ">=", ":=", "<<<", ">>>", "<<", ">>", "<", ">",
-    //     "!=", "==", "&&", "||", "??", "!?", "&", "|", "^|",
-    // ];
+    fn _evaluate_unary_function_call(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+        todo!()
+    }
+
+    fn _evaluate_binary_operator(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+        // pub const BINARY_OPERATORS: &[&str] = &[
+        //     "^", "*", "/", "%", "+", "-", "<=>", "<=", ">=", ":=", "<<<", ">>>", "<<", ">>", "<", ">",
+        //     "!=", "==", "&&", "||", "??", "!?", "&", "|", "^|",
+        // ];
+        todo!()
+    }
+
+    fn _evaluate_binary_function_call(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+        // M rt N, M logb N, M choose N
+        todo!()
+    }
+
 
     fn _evaluate_variables(&mut self, ast: &mut Ast) -> Result<(), SyntaxError> {
         let mut i: usize = 0;

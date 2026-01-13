@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::From;
 use std::fmt::Display;
 
@@ -308,7 +308,9 @@ impl Value {
         };
         match result.type_ {
             ValueType::Bitseq => { /* Unreachable */ }
-            ValueType::Decimal => result.val_decimal = (result.val_decimal + Decimal::ONE).gamma()?,
+            ValueType::Decimal => {
+                result.val_decimal = (result.val_decimal + Decimal::ONE).gamma()?
+            }
             ValueType::Integer => result.val_integer = result.val_integer.factorial()?,
         }
         Ok(result)
@@ -393,27 +395,19 @@ impl Display for Value {
 
 pub struct ValueStore {
     pub map: HashMap<String, Value>,
-    _protected_keys: Vec<String>,
+    _protected_keys: HashSet<String>,
+    _readonly_keys: HashSet<String>,
 }
 
 impl ValueStore {
     pub fn new() -> Self {
-        let mut vs = Self::default();
-        vs.set(
-            "test",
-            Value::from_str("12345.06789", Position::default()).unwrap(),
-        );
-        vs.set(
-            "\\blah",
-            Value::from_str("0b000101011", Position::default()).unwrap(),
-        );
-        vs
+        Self::default()
     }
 
     pub fn with_protected_keys<S: AsRef<str>>(keys: Vec<S>) -> Self {
-        let mut protected_keys = Vec::with_capacity(keys.len());
+        let mut protected_keys: HashSet<String> = HashSet::with_capacity(keys.len());
         for k in keys.into_iter() {
-            protected_keys.push(k.as_ref().to_string())
+            protected_keys.insert(k.as_ref().to_lowercase());
         }
         Self {
             _protected_keys: protected_keys,
@@ -421,25 +415,50 @@ impl ValueStore {
         }
     }
 
-    pub fn set<S: AsRef<str>>(&mut self, identifier: S, value: Value) {
-        self.map.insert(identifier.as_ref().to_string(), value);
+    pub fn add_protected_key<S: AsRef<str>>(&mut self, key: S) {
+        self._protected_keys.insert(key.as_ref().to_lowercase());
+    }
+
+    pub fn remove_protected_key<S: AsRef<str>>(&mut self, key: S) {
+        self._protected_keys.remove(&key.as_ref().to_lowercase());
+    }
+
+    pub fn set_readonly<S: AsRef<str>>(&mut self, identifier: S, value: Value) -> bool {
+        let readonly_identifier = identifier.as_ref().to_lowercase();
+        if !self.set(identifier, value) {
+            return false;
+        }
+        self._readonly_keys.insert(readonly_identifier);
+        true
+    }
+
+    pub fn set<S: AsRef<str>>(&mut self, identifier: S, value: Value) -> bool {
+        let identifier = identifier.as_ref().to_lowercase();
+        if self._readonly_keys.contains(&identifier) {
+            return false;
+        }
+        self.map.insert(identifier, value);
+        true
     }
 
     pub fn get<S: AsRef<str>>(&self, identifier: S) -> Option<&Value> {
-        self.map.get(&identifier.as_ref().to_string())
+        self.map.get(&identifier.as_ref().to_lowercase())
     }
 
-    pub fn contains_identifier<S: AsRef<str>>(&self, identifier: S) -> bool {
-        self.map.contains_key(&identifier.as_ref().to_string())
+    pub fn contains<S: AsRef<str>>(&self, identifier: S) -> bool {
+        self.map.contains_key(&identifier.as_ref().to_lowercase())
     }
 
     pub fn clear(&mut self) {
-        self.map.retain(|k, _| self._protected_keys.contains(&k));
+        self.map.retain(|k, _| self._protected_keys.contains(k));
+        self._readonly_keys
+            .retain(|k| self._protected_keys.contains(k));
     }
 
     pub fn clear_all(&mut self) {
         self.map.clear();
         self._protected_keys.clear();
+        self._readonly_keys.clear();
     }
 }
 
@@ -447,7 +466,8 @@ impl Default for ValueStore {
     fn default() -> Self {
         Self {
             map: HashMap::with_capacity(20),
-            _protected_keys: vec![],
+            _protected_keys: HashSet::new(),
+            _readonly_keys: HashSet::new(),
         }
     }
 }
