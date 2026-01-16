@@ -315,6 +315,74 @@ impl Value {
         }
         Ok(result)
     }
+
+    pub fn abs(&self) -> Self {
+        let mut result = self.clone();
+        match result.type_ {
+            ValueType::Bitseq => {}
+            ValueType::Decimal => result.val_decimal = result.val_decimal.abs(),
+            ValueType::Integer => result.val_integer = result.val_integer.abs(),
+        }
+        result
+    }
+
+    pub fn sin(&self) -> Result<Self, InvalidOperationError> {
+        let mut result = self.clone();
+        if result.type_ != ValueType::Decimal {
+            if let Err(e) = result.try_mutate_into(ValueType::Decimal) {
+                return Err(InvalidOperationError::new(e.msg));
+            }
+        }
+        if result.val_decimal < Decimal::ZERO {
+            return Err(InvalidOperationError::new("Sine not defined for negative inputs, input must be >= 0"));
+        }
+        result.val_decimal = result.val_decimal.sin();
+        Ok(result)
+    }
+
+    pub fn cos(&self) -> Self {
+        todo!()
+    }
+
+    pub fn tan(&self) -> Self {
+        todo!()
+    }
+
+    pub fn cot(&self) -> Self {
+        todo!()
+    }
+
+    pub fn sec(&self) -> Self {
+        todo!()
+    }
+
+    pub fn csc(&self) -> Self {
+        todo!()
+    }
+
+    pub fn exp(&self) -> Self {
+        todo!()
+    }
+
+    pub fn ln(&self) -> Self {
+        todo!()
+    }
+
+    pub fn log(&self) -> Self {
+        todo!()
+    }
+
+    pub fn lg(&self) -> Self {
+        todo!()
+    }
+
+    pub fn sqrt(&self) -> Self {
+        todo!()
+    }
+
+    pub fn cbrt(&self) -> Self {
+        todo!()
+    }
 }
 
 impl From<Decimal> for Value {

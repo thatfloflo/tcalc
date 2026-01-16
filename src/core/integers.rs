@@ -77,6 +77,10 @@ impl Integer {
         }
         Ok(Self { value: result })
     }
+
+    pub fn abs(&self) -> Self {
+        Self { value: self.value.abs() }
+    }
 }
 
 impl Display for Integer {

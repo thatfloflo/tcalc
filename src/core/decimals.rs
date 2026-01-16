@@ -69,6 +69,23 @@ impl Decimal {
             .pow(self.value);
         Ok(Self { value: approx })
     }
+
+    pub fn abs(&self) -> Self {
+        return Self { value: self.value.abs() }
+    }
+
+    fn degrees_to_radians_reduced(degrees: DecimalT) -> DecimalT {
+        const FULL_CIRCLE: DecimalT = DecimalT::from_i32(360);
+        let mut degrees = degrees;
+        while degrees > FULL_CIRCLE {
+            degrees -= 360;
+        }
+        degrees.to_radians()
+    }
+
+    pub fn sin(&self) -> Self {
+        return Self { value: Self::degrees_to_radians_reduced(self.value).sin() }
+    }
 }
 
 impl Display for Decimal {

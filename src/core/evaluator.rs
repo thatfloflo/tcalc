@@ -55,6 +55,7 @@ impl Evaluator {
             if node.token.type_.is_operator() {
                 self._evaluate_unary_operator(node).unwrap();
             } else { // node.token.type_.is_function_identifier()
+                self._evaluate_unary_function_call(node).unwrap();
             }
         } else { // node.token.type_.is_binary()
             if node.subtree.len() != 2 {
@@ -148,7 +149,25 @@ impl Evaluator {
     }
 
     fn _evaluate_unary_function_call(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
-        todo!()
+        // pub const BUILTIN_UNARY_FUNCTIONS: &[&str] = &[
+        //     "abs", "not", "sin", "cos", "tan", "cot", "sec", "csc", "exp", "ln", "lg", "log", "sqrt",
+        //     "cbrt", "mem",
+        // ];
+        let operand = node.subtree[0].value.as_ref().unwrap();
+        let func_identifier = node.token.content_to_string();
+        println!("Evaluating unary function {func_identifier}( {operand} )");
+        let result = match func_identifier.as_str() {
+            "abs" => { operand.abs() },
+            "sin" => { operand.sin().unwrap() },
+            _ => {
+                return Err(SyntaxError::new(
+                    format!("The function \"{func_identifier}\" is undefined"),
+                    node.token.position,
+                ));
+            }
+        };
+        node.value = Some(result);
+        Ok(())
     }
 
     fn _evaluate_binary_operator(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
