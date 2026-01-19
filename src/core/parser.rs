@@ -1,7 +1,5 @@
-use std::fmt::Display;
-
 use crate::core::ast::{Ast, AstNode};
-use crate::core::errors::SyntaxError;
+use crate::core::errors::{InputPosition, SyntaxError};
 use crate::core::patterns;
 use crate::core::tokens::{Token, TokenType};
 
@@ -54,9 +52,9 @@ impl Parser {
             }
         }
         if parens > 0 {
-            return Err(SyntaxError::new(
+            return Err(SyntaxError::newp(
                 "Could not match open parenthesis with closing parenthesis",
-                Position::new(0, start),
+                InputPosition::new("unknown", 0, start),
             ));
         }
         Ok(())
@@ -141,12 +139,12 @@ impl Parser {
                 // Match TokenType.Expression
                 // Find matching closing parenthesis and consume input along the way
                 if let Err(e) = Self::_copy_matchedspan(&input, '(', ')', i + 1, &mut buf) {
-                    return Err(SyntaxError::new(e.msg, Position::new(line, chr + i)));
+                    return Err(SyntaxError::newp(e.msg, InputPosition::new("unknown", line, chr + i)));
                 }
                 let token = Token::new(
                     TokenType::Expression,
                     buf.clone(),
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 );
                 tree.push_token(token);
                 i += buf.len() + 1; // Skip the closing paren
@@ -166,7 +164,7 @@ impl Parser {
                 tree.push_token(Token::new(
                     token_type,
                     buf.clone(),
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 ));
                 i += buf.len() - 1;
                 buf.clear();
@@ -186,7 +184,7 @@ impl Parser {
                 tree.push_token(Token::new(
                     token_type,
                     buf.clone(),
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 ));
                 i += buf.len() - 1;
                 buf.clear();
@@ -203,27 +201,27 @@ impl Parser {
                 } else if patterns::BINARY_OPERATORS.contains(&&buf_string.as_str()) {
                     token_type = TokenType::BinaryOperator;
                 } else {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         format!("Unknown operator '{}'", buf_string),
-                        Position::new(line, chr + i),
+                        InputPosition::new("unknown", line, chr + i),
                     ));
                 }
                 tree.push_token(Token::new(
                     token_type,
                     buf.clone(),
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 ));
                 i += buf.len() - 1;
                 buf.clear();
             } else if input[i] == ')' {
-                return Err(SyntaxError::new(
+                return Err(SyntaxError::newp(
                     "Unexpected closing parenthesis",
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 ));
             } else {
-                return Err(SyntaxError::new(
+                return Err(SyntaxError::newp(
                     format!("Unknown character '{}'", input[i]),
-                    Position::new(line, chr + i),
+                    InputPosition::new("unknown", line, chr + i),
                 ));
             }
             i += 1;
@@ -274,7 +272,7 @@ impl Parser {
                 let token = Token::new_implicit(
                     TokenType::BinaryOperator,
                     vec!['*'],
-                    tree[i + 1].token.position,
+                    tree[i + 1].token.position.clone(),
                 );
                 tree.insert(i + 1, AstNode::new_from_token(token));
                 i += 1;
@@ -310,12 +308,12 @@ impl Parser {
                     has_right_value = match tree[i + 1].token.type_ {
                         TokenType::UnaryOperator => {
                             if tree[i + 1].token.content == vec!['!'] {
-                                return Err(SyntaxError::new(
+                                return Err(SyntaxError::newp(
                                 format!(
                                         "Ambiguous operator '{}' cannot precede unary operator '!'",
                                         tree[i].token.content_to_string()
                                     ),
-                                    tree[i].token.position,
+                                    tree[i].token.position.clone(),
                                 ));
                             }
                             true
@@ -335,12 +333,12 @@ impl Parser {
                 } else if has_left_value == false && has_right_value == true {
                     tree[i].token.type_ = TokenType::UnaryOperator;
                 } else {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         format!(
                             "Could not disambiguate ambiguous operator '{}', consider using parentheses",
                             tree[i].token.content_to_string()
                         ),
-                        tree[i].token.position,
+                        tree[i].token.position.clone(),
                     ));
                 }
             }
@@ -356,7 +354,7 @@ impl Parser {
         if tree[0].token.type_ == TokenType::BinaryFunctionIdentifier
             || tree[0].token.type_ == TokenType::BinaryOperator
         {
-            let position = tree[0].token.position;
+            let position = tree[0].token.position.clone();
             tree.insert(0, Self::_generate_mem0_call(position));
             if tree[0].has_children() {
                 let base_level = tree.level();
@@ -366,19 +364,19 @@ impl Parser {
         Ok(())
     }
 
-    fn _generate_mem0_call(position: Position) -> AstNode {
+    fn _generate_mem0_call(position: InputPosition) -> AstNode {
         AstNode::new_with_subtree(
-            Token::new_implicit(TokenType::Expression, "(mem 0)".chars().collect(), position),
+            Token::new_implicit(TokenType::Expression, "(mem 0)".chars().collect(), position.clone()),
             Ast::from(AstNode::new_with_subtree(
                 Token::new_implicit(
                     TokenType::UnaryFunctionIdentifier,
                     vec!['m', 'e', 'm'],
-                    position,
+                    position.clone(),
                 ),
                 Ast::from(AstNode::new_from_token(Token::new_implicit(
                     TokenType::Integer,
                     vec!['0'],
-                    position,
+                    position.clone(),
                 ))),
             )),
         )
@@ -403,9 +401,9 @@ impl Parser {
         while i < tree.len() {
             if tree[i].token.type_ == TokenType::UnaryOperator && tree[i].token.content == &['!'] {
                 if i < 1 {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         "Unary operator '!' is missing a left-hand operand",
-                        tree[i].token.position,
+                        tree[i].token.position.clone(),
                     ));
                 }
                 i -= 1;
@@ -433,12 +431,12 @@ impl Parser {
             {
                 let operand_i = i + 1;
                 if operand_i >= tree.len() {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         format!(
                             "Unary operator '{}' is missing a right-hand operand",
                             tree[i].token.content_to_string()
                         ),
-                        tree[i].token.position,
+                        tree[i].token.position.clone(),
                     ));
                 }
                 let mut subtree = Ast::from(tree.remove(operand_i));
@@ -474,23 +472,23 @@ impl Parser {
                 && binops.contains(&tree[i].token.content_to_string())
             {
                 if i == 0 {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         format!(
                             "Binary operator '{}' is missing a left-hand operand",
                             tree[i].token.content_to_string()
                         ),
-                        tree[i].token.position,
+                        tree[i].token.position.clone(),
                     ));
                 }
                 let left_operand_i: usize = i - 1;
                 let right_operand_i: usize = i + 1;
                 if right_operand_i >= tree.len() {
-                    return Err(SyntaxError::new(
+                    return Err(SyntaxError::newp(
                         format!(
                             "Binary operator '{}' is missing a right-hand operand",
                             tree[i].token.content_to_string()
                         ),
-                        tree[i].token.position,
+                        tree[i].token.position.clone(),
                     ));
                 }
                 let mut operands = vec![tree.remove(right_operand_i), tree.remove(left_operand_i)];
@@ -511,29 +509,5 @@ impl Parser {
 impl Default for Parser {
     fn default() -> Self {
         Self { ast: Ast::new() }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Position {
-    pub line: usize,
-    pub chr: usize,
-}
-
-impl Position {
-    pub fn new(line: usize, chr: usize) -> Self {
-        Self { line, chr }
-    }
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Self { line: 0, chr: 0 }
-    }
-}
-
-impl Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.line, self.chr)
     }
 }

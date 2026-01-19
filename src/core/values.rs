@@ -3,10 +3,9 @@ use std::convert::From;
 use std::fmt::Display;
 
 use crate::core::bitseqs::Bitseq;
-use crate::core::decimals::Decimal;
+use crate::core::decimals::{AngleUnit, Decimal};
 use crate::core::errors::{ConversionError, InvalidOperationError, SyntaxError};
 use crate::core::integers::Integer;
-use crate::core::parser::Position;
 use crate::core::patterns;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -124,64 +123,55 @@ impl Value {
         format!("{}", int_value)
     }
 
-    fn _from_bitseq_str(s: &str, position: Position) -> Result<Value, SyntaxError> {
+    fn _from_bitseq_str(s: &str) -> Result<Value, SyntaxError> {
         let norm_s = Self::_strip_str(s);
         match Bitseq::from_str(&norm_s) {
             Some(b) => Ok(Self::from_bitseq(b)),
-            None => Err(SyntaxError {
-                msg: format!(
-                    "Failed to parse string \"{}\" (normalised to \"{}\" into bit-sequence value",
-                    s, norm_s
-                ),
-                position: position,
-            }),
+            None => Err(SyntaxError::new(format!(
+                "Failed to parse string \"{}\" (normalised to \"{}\" into bit-sequence value",
+                s, norm_s
+            ))),
         }
     }
 
-    fn _from_int_str(s: &str, base: u8, position: Position) -> Result<Self, SyntaxError> {
+    fn _from_int_str(s: &str, base: u8) -> Result<Self, SyntaxError> {
         let norm_s = Self::_strip_str(s);
         match Integer::from_str_radix(&norm_s, base.into()) {
             Ok(i) => Ok(Self::from_integer(i)),
-            Err(_) => Err(SyntaxError {
-                msg: format!(
-                    "Failed to parse string \"{}\" (normalised to \"{}\" into integer value",
-                    s, norm_s
-                ),
-                position: position,
-            }),
+            Err(_) => Err(SyntaxError::new(format!(
+                "Failed to parse string \"{}\" (normalised to \"{}\" into integer value",
+                s, norm_s
+            ))),
         }
     }
 
-    fn _from_dec_str(s: &str, base: u8, position: Position) -> Result<Self, SyntaxError> {
+    fn _from_dec_str(s: &str, base: u8) -> Result<Self, SyntaxError> {
         let mut norm_s = Self::_strip_str(s);
         norm_s = Self::_to_base_10(norm_s, base);
         match norm_s.parse::<Decimal>() {
             Ok(d) => Ok(Self::from_decimal(d)),
-            Err(_) => Err(SyntaxError {
-                msg: format!(
-                    "Failed to parse string \"{}\" (normalised to \"{}\") into decimal value",
-                    s, norm_s
-                ),
-                position: position,
-            }),
+            Err(_) => Err(SyntaxError::new(format!(
+                "Failed to parse string \"{}\" (normalised to \"{}\") into decimal value",
+                s, norm_s
+            ))),
         }
     }
 
-    pub fn from_str(s: &str, position: Position) -> Result<Self, SyntaxError> {
+    pub fn from_str(s: &str) -> Result<Self, SyntaxError> {
         let base: u8 = if let Some(b) = Self::_check_str_and_get_base(s) {
             b
         } else {
-            return Err(SyntaxError {
-                msg: format!("The pattern of the numeral string \"{}\" is invalid", s),
-                position: position,
-            });
+            return Err(SyntaxError::new(format!(
+                "The pattern of the numeral string \"{}\" is invalid",
+                s
+            )));
         };
         if Self::_has_fractional_separator(s) {
-            Self::_from_dec_str(s, base, position)
+            Self::_from_dec_str(s, base)
         } else if base == 2 {
-            Value::_from_bitseq_str(s, position)
+            Value::_from_bitseq_str(s)
         } else {
-            Self::_from_int_str(s, base, position)
+            Self::_from_int_str(s, base)
         }
     }
 
@@ -326,7 +316,7 @@ impl Value {
         result
     }
 
-    pub fn sin(&self) -> Result<Self, InvalidOperationError> {
+    pub fn sin(&self, mode: AngleUnit) -> Result<Self, InvalidOperationError> {
         let mut result = self.clone();
         if result.type_ != ValueType::Decimal {
             if let Err(e) = result.try_mutate_into(ValueType::Decimal) {
@@ -334,9 +324,11 @@ impl Value {
             }
         }
         if result.val_decimal < Decimal::ZERO {
-            return Err(InvalidOperationError::new("Sine not defined for negative inputs, input must be >= 0"));
+            return Err(InvalidOperationError::new(
+                "Sine not defined for negative inputs, input must be >= 0",
+            ));
         }
-        result.val_decimal = result.val_decimal.sin();
+        result.val_decimal = result.val_decimal.sin(mode);
         Ok(result)
     }
 
@@ -407,7 +399,7 @@ impl TryFrom<&str> for Value {
     type Error = SyntaxError;
 
     fn try_from(item: &str) -> Result<Self, Self::Error> {
-        Self::from_str(item, Position::default())
+        Self::from_str(item)
     }
 }
 

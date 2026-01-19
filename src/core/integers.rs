@@ -7,7 +7,6 @@ use fastnum::I512;
 use crate::core::bitseqs::{Bitseq, BitseqT};
 use crate::core::decimals::Decimal;
 use crate::core::errors::{ConversionError, InvalidOperationError, SyntaxError};
-use crate::core::parser::Position;
 
 pub type IntegerT = I512;
 
@@ -48,7 +47,6 @@ impl Integer {
             Ok(value) => Ok(Self { value }),
             Err(_) => Err(SyntaxError::new(
                 "Failed to parse string \"{}\" of base {} into Integer",
-                Position::default(),
             )),
         }
     }
@@ -79,7 +77,9 @@ impl Integer {
     }
 
     pub fn abs(&self) -> Self {
-        Self { value: self.value.abs() }
+        Self {
+            value: self.value.abs(),
+        }
     }
 }
 

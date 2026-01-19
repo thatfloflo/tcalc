@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::core::parser::Position;
+use crate::core::errors::InputPosition;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -71,12 +71,12 @@ impl Display for TokenType {
 pub struct Token {
     pub type_: TokenType,
     pub content: Vec<char>,
-    pub position: Position,
+    pub position: InputPosition,
     pub implicit: bool,
 }
 
 impl Token {
-    pub fn new(type_: TokenType, content: Vec<char>, position: Position) -> Self {
+    pub fn new(type_: TokenType, content: Vec<char>, position: InputPosition) -> Self {
         Self {
             type_,
             content,
@@ -85,7 +85,7 @@ impl Token {
         }
     }
 
-    pub fn new_implicit(type_: TokenType, content: Vec<char>, position: Position) -> Self {
+    pub fn new_implicit(type_: TokenType, content: Vec<char>, position: InputPosition) -> Self {
         Self {
             type_,
             content,

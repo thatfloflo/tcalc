@@ -1,5 +1,6 @@
 use crate::core::ast::{Ast, AstNode};
 use crate::core::bitseqs::Bitseq;
+use crate::core::decimals::AngleUnit;
 use crate::core::environment::Environment;
 use crate::core::errors::SyntaxError;
 use crate::core::tokens::TokenType;
@@ -15,9 +16,7 @@ impl Evaluator {
         n.environment
             .variables
             .set("foo", Value::from(Bitseq::ZERO));
-        n.environment
-            .variables
-            .set("D", Value::from(Bitseq::ONE));
+        n.environment.variables.set("D", Value::from(Bitseq::ONE));
         n
     }
 
@@ -54,10 +53,12 @@ impl Evaluator {
             }
             if node.token.type_.is_operator() {
                 self._evaluate_unary_operator(node).unwrap();
-            } else { // node.token.type_.is_function_identifier()
+            } else {
+                // node.token.type_.is_function_identifier()
                 self._evaluate_unary_function_call(node).unwrap();
             }
-        } else { // node.token.type_.is_binary()
+        } else {
+            // node.token.type_.is_binary()
             if node.subtree.len() != 2 {
                 panic!(
                     "Attempting to evaluate binary operation that has {} children (expected 2)",
@@ -66,7 +67,8 @@ impl Evaluator {
             }
             if node.token.type_.is_operator() {
                 self._evaluate_binary_operator(node).unwrap();
-            } else { // node.token.type_.is_function_identifier()
+            } else {
+                // node.token.type_.is_function_identifier()
                 self._evaluate_binary_function_call(node).unwrap();
             }
         }
@@ -100,11 +102,13 @@ impl Evaluator {
         //         node.token.type_, node.token.position
         //     );
         // }
-        node.value = Some(Value::from_str(
-            &node.token.content_to_string(),
-            node.token.position,
-        )?);
-        Ok(())
+        match Value::from_str(&node.token.content_to_string()) {
+            Ok(v) => {
+                node.value = Some(v);
+                Ok(())
+            }
+            Err(e) => Err(e.with_position(node.token.position.clone())),
+        }
     }
 
     fn _evaluate_variable(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
@@ -118,9 +122,9 @@ impl Evaluator {
         match self.environment.variables.get(&identifier) {
             Some(value) => node.value = Some(value.clone()),
             None => {
-                return Err(SyntaxError::new(
+                return Err(SyntaxError::newp(
                     format!("The variable identifier \"{identifier}\" is undefined"),
-                    node.token.position,
+                    node.token.position.clone(),
                 ));
             }
         }
@@ -132,15 +136,15 @@ impl Evaluator {
         let operand = node.subtree[0].value.as_ref().unwrap();
         let operator = node.token.content_to_string();
         let result = match operator.as_str() {
-            "+" => { operand.unary_pos() },
-            "-" => { operand.unary_neg() },
-            "!" => { operand.factorial().unwrap() },
-            "¬" => { operand.logical_neg() },
-            "~" => { operand.bitwise_neg().unwrap() },
+            "+" => operand.unary_pos(),
+            "-" => operand.unary_neg(),
+            "!" => operand.factorial().unwrap(),
+            "¬" => operand.logical_neg(),
+            "~" => operand.bitwise_neg().unwrap(),
             _ => {
-                return Err(SyntaxError::new(
+                return Err(SyntaxError::newp(
                     format!("The operator \"{operator}\" is undefined"),
-                    node.token.position,
+                    node.token.position.clone(),
                 ));
             }
         };
@@ -157,12 +161,12 @@ impl Evaluator {
         let func_identifier = node.token.content_to_string();
         println!("Evaluating unary function {func_identifier}( {operand} )");
         let result = match func_identifier.as_str() {
-            "abs" => { operand.abs() },
-            "sin" => { operand.sin().unwrap() },
+            "abs" => operand.abs(),
+            "sin" => operand.sin(AngleUnit::Degrees).unwrap(),
             _ => {
-                return Err(SyntaxError::new(
+                return Err(SyntaxError::newp(
                     format!("The function \"{func_identifier}\" is undefined"),
-                    node.token.position,
+                    node.token.position.clone(),
                 ));
             }
         };
@@ -183,7 +187,6 @@ impl Evaluator {
         todo!()
     }
 
-
     fn _evaluate_variables(&mut self, ast: &mut Ast) -> Result<(), SyntaxError> {
         let mut i: usize = 0;
         while i < ast.len() {
@@ -199,13 +202,13 @@ impl Evaluator {
                 {
                     Some(v) => ast[i].value = Some(v.clone()),
                     None => {
-                        return Err(SyntaxError {
-                            msg: format!(
+                        return Err(SyntaxError::newp(
+                            format!(
                                 "The variable identifier \"{}\" is undefined",
                                 ast[i].token.content_to_string()
                             ),
-                            position: ast[i].token.position,
-                        });
+                            ast[i].token.position.clone(),
+                        ));
                     }
                 };
             }

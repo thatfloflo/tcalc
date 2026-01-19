@@ -74,17 +74,23 @@ impl Decimal {
         return Self { value: self.value.abs() }
     }
 
-    fn degrees_to_radians_reduced(degrees: DecimalT) -> DecimalT {
-        const FULL_CIRCLE: DecimalT = DecimalT::from_i32(360);
-        let mut degrees = degrees;
-        while degrees > FULL_CIRCLE {
-            degrees -= 360;
+    fn reduce_radians(radians: DecimalT) -> DecimalT {
+        let mut radians = radians;
+        while radians >= DecimalT::TAU {
+            radians -= DecimalT::TAU;
         }
-        degrees.to_radians()
+        radians
     }
 
-    pub fn sin(&self) -> Self {
-        return Self { value: Self::degrees_to_radians_reduced(self.value).sin() }
+    fn prep_trig_value(value: DecimalT, mode: AngleUnit) -> DecimalT {
+        match mode {
+            AngleUnit::Radians => Self::reduce_radians(value),
+            AngleUnit::Degrees => Self::reduce_radians(value.to_radians()),
+        }
+    }
+
+    pub fn sin(&self, mode: AngleUnit) -> Self {
+        return Self { value: Self::prep_trig_value(self.value, mode).sin() }
     }
 }
 
@@ -188,4 +194,9 @@ impl Add for Decimal {
             value: self.value + rhs.value,
         }
     }
+}
+
+pub enum AngleUnit {
+    Degrees,
+    Radians,
 }
