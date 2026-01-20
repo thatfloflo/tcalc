@@ -1,6 +1,22 @@
 use std::error::Error;
 use std::fmt::Display;
 
+#[macro_export]
+macro_rules! unwrap_or_propagate {
+    ( $ex:expr ) => {
+        match $ex {
+            Ok(v) => v,
+            Err(e) => return Err(From::from(e)),
+        }
+    };
+    ( $ex:expr, position: $pos:expr ) => {
+        match $ex {
+            Ok(v) => v,
+            Err(e) => return Err(From::from(e.with_position($pos)))
+        }
+    }
+}
+
 macro_rules! define_errors {
     ( $($err_ident:ident, $err_code:literal, $err_desc:literal);*; ) => {
         $(
@@ -96,7 +112,7 @@ pub struct TCalcError {
 }
 
 impl TCalcError {
-    fn with_position(self, position: InputPosition) -> Self {
+    pub fn with_position(self, position: InputPosition) -> Self {
         Self { position, ..self }
     }
 }

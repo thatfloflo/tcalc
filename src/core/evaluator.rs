@@ -2,9 +2,10 @@ use crate::core::ast::{Ast, AstNode};
 use crate::core::bitseqs::Bitseq;
 use crate::core::decimals::AngleUnit;
 use crate::core::environment::Environment;
-use crate::core::errors::SyntaxError;
+use crate::core::errors::{SyntaxError, TCalcError};
 use crate::core::tokens::TokenType;
 use crate::core::values::Value;
+use crate::unwrap_or_propagate;
 
 pub struct Evaluator {
     pub environment: Environment,
@@ -20,16 +21,22 @@ impl Evaluator {
         n
     }
 
-    pub fn evaluate_node(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+    pub fn evaluate_node(&mut self, node: &mut AstNode) -> Result<(), TCalcError> {
         if node.value.is_some() {
             return Ok(()); // No need to evaluate nodes that have already been valued
             // This should not normally happen anyways, so maybe add some reporting?
         }
         if node.token.type_.is_terminal() {
             if node.token.type_.is_numeral() {
-                self._evaluate_numeral(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_numeral(node),
+                    position: node.token.position.clone()
+                );
             } else if node.token.type_.is_variable_identifier() {
-                self._evaluate_variable(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_variable(node),
+                    position: node.token.position.clone()
+                );
             }
             return Ok(());
         }
@@ -52,10 +59,16 @@ impl Evaluator {
                 )
             }
             if node.token.type_.is_operator() {
-                self._evaluate_unary_operator(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_unary_operator(node),
+                    position: node.token.position.clone()
+                );
             } else {
                 // node.token.type_.is_function_identifier()
-                self._evaluate_unary_function_call(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_unary_function_call(node),
+                    position: node.token.position.clone()
+                );
             }
         } else {
             // node.token.type_.is_binary()
@@ -66,16 +79,22 @@ impl Evaluator {
                 )
             }
             if node.token.type_.is_operator() {
-                self._evaluate_binary_operator(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_binary_operator(node),
+                    position: node.token.position.clone()
+                );
             } else {
                 // node.token.type_.is_function_identifier()
-                self._evaluate_binary_function_call(node).unwrap();
+                unwrap_or_propagate!(
+                    self._evaluate_binary_function_call(node),
+                    position: node.token.position.clone()
+                );
             }
         }
         Ok(())
     }
 
-    pub fn evaluate(&mut self, ast: &mut Ast) -> Result<(), SyntaxError> {
+    pub fn evaluate(&mut self, ast: &mut Ast) -> Result<(), TCalcError> {
         for node in ast.iter_mut() {
             self.evaluate_node(node)?;
         }
@@ -123,7 +142,7 @@ impl Evaluator {
             Some(value) => node.value = Some(value.clone()),
             None => {
                 return Err(SyntaxError::newp(
-                    format!("The variable identifier \"{identifier}\" is undefined"),
+                    format!("The variable \"{identifier}\" is undefined"),
                     node.token.position.clone(),
                 ));
             }
@@ -131,28 +150,29 @@ impl Evaluator {
         Ok(())
     }
 
-    fn _evaluate_unary_operator(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+    fn _evaluate_unary_operator(&mut self, node: &mut AstNode) -> Result<(), TCalcError> {
         // pub const UNARY_OPERATORS: &[&str] = &["+", "-", "!", "¬", "~"];
         let operand = node.subtree[0].value.as_ref().unwrap();
         let operator = node.token.content_to_string();
         let result = match operator.as_str() {
             "+" => operand.unary_pos(),
             "-" => operand.unary_neg(),
-            "!" => operand.factorial().unwrap(),
+            "!" => operand.factorial()?,
             "¬" => operand.logical_neg(),
-            "~" => operand.bitwise_neg().unwrap(),
+            "~" => operand.bitwise_neg()?,
             _ => {
                 return Err(SyntaxError::newp(
                     format!("The operator \"{operator}\" is undefined"),
                     node.token.position.clone(),
-                ));
+                )
+                .into());
             }
         };
         node.value = Some(result);
         Ok(())
     }
 
-    fn _evaluate_unary_function_call(&mut self, node: &mut AstNode) -> Result<(), SyntaxError> {
+    fn _evaluate_unary_function_call(&mut self, node: &mut AstNode) -> Result<(), TCalcError> {
         // pub const BUILTIN_UNARY_FUNCTIONS: &[&str] = &[
         //     "abs", "not", "sin", "cos", "tan", "cot", "sec", "csc", "exp", "ln", "lg", "log", "sqrt",
         //     "cbrt", "mem",
@@ -162,12 +182,13 @@ impl Evaluator {
         println!("Evaluating unary function {func_identifier}( {operand} )");
         let result = match func_identifier.as_str() {
             "abs" => operand.abs(),
+            "not" => operand.logical_neg(),
             "sin" => operand.sin(AngleUnit::Degrees).unwrap(),
             _ => {
-                return Err(SyntaxError::newp(
-                    format!("The function \"{func_identifier}\" is undefined"),
-                    node.token.position.clone(),
-                ));
+                return Err(SyntaxError::new(format!(
+                    "The function \"{func_identifier}\" is undefined"
+                ))
+                .into());
             }
         };
         node.value = Some(result);

@@ -2,15 +2,24 @@ use std::fmt::Display;
 
 use crate::core::errors::InputPosition;
 
+macro_rules! is_any_of {
+    ( $self:expr, $option_0:expr $(, $option_n:expr)* ) => {
+        ($self) == ($option_0)
+        $(
+            || ($self) == ($option_n)
+        )*
+    };
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TokenType {
     AmbiguousOperator,
     BinaryFunctionIdentifier,
     BinaryOperator,
     Bitseq,
+    Decimal,
     Expression,
     Integer,
-    Decimal,
     UnaryFunctionIdentifier,
     UnaryOperator,
     VariableIdentifier,
@@ -18,31 +27,54 @@ pub enum TokenType {
 
 impl TokenType {
     pub fn is_numeral(self) -> bool {
-        matches!(self, Self::Bitseq | Self:: Integer | Self::Decimal)
+        is_any_of!(self, Self::Bitseq, Self::Decimal, Self::Integer)
     }
     pub fn is_operator(self) -> bool {
-        matches!(self, Self::AmbiguousOperator | Self::BinaryOperator | Self::UnaryOperator)
+        is_any_of!(
+            self,
+            Self::AmbiguousOperator,
+            Self::BinaryOperator,
+            Self::UnaryOperator
+        )
     }
     pub fn is_resolved_operator(self) -> bool {
-        matches!(self, Self::BinaryOperator | Self::UnaryOperator)
+        is_any_of!(self, Self::BinaryOperator, Self::UnaryOperator)
     }
     pub fn is_unary(self) -> bool {
-        matches!(self, Self::UnaryFunctionIdentifier | Self::UnaryOperator)
+        is_any_of!(self, Self::UnaryFunctionIdentifier, Self::UnaryOperator)
     }
     pub fn is_binary(self) -> bool {
-        matches!(self, Self::BinaryFunctionIdentifier | Self::BinaryOperator)
+        is_any_of!(self, Self::BinaryFunctionIdentifier, Self::BinaryOperator)
     }
     pub fn is_identifier(self) -> bool {
-        matches!(self, Self::BinaryFunctionIdentifier | Self::UnaryFunctionIdentifier | Self::VariableIdentifier)
+        is_any_of!(
+            self,
+            Self::BinaryFunctionIdentifier,
+            Self::UnaryFunctionIdentifier,
+            Self::VariableIdentifier
+        )
     }
     pub fn is_function_identifier(self) -> bool {
-        matches!(self, Self::BinaryFunctionIdentifier | Self::UnaryFunctionIdentifier)
+        is_any_of!(
+            self,
+            Self::BinaryFunctionIdentifier,
+            Self::UnaryFunctionIdentifier
+        )
     }
     pub fn is_variable_identifier(self) -> bool {
-        self == Self::VariableIdentifier
+        is_any_of!(self, Self::VariableIdentifier)
     }
     pub fn is_terminal(self) -> bool {
-        matches!(self, Self::Bitseq | Self::Integer | Self::Decimal | Self::VariableIdentifier)
+        is_any_of!(
+            self,
+            Self::Bitseq,
+            Self::Decimal,
+            Self::Integer,
+            Self::VariableIdentifier
+        )
+    }
+    pub fn is_expression(self) -> bool {
+        is_any_of!(self, Self::Expression)
     }
 }
 
@@ -56,9 +88,9 @@ impl Display for TokenType {
                 Self::BinaryFunctionIdentifier => "BinaryFunctionIdentifier",
                 Self::BinaryOperator => "BinaryOperator",
                 Self::Bitseq => "Bitseq",
+                Self::Decimal => "Decimal",
                 Self::Expression => "Expression",
                 Self::Integer => "Integer",
-                Self::Decimal => "Decimal",
                 Self::UnaryFunctionIdentifier => "UnaryFunctionIdentifier",
                 Self::UnaryOperator => "UnaryOperator",
                 Self::VariableIdentifier => "VariableIdentifier",

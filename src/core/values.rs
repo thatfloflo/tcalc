@@ -297,7 +297,7 @@ impl Value {
             self.clone()
         };
         match result.type_ {
-            ValueType::Bitseq => { /* Unreachable */ }
+            ValueType::Bitseq => unreachable!(),
             ValueType::Decimal => {
                 result.val_decimal = (result.val_decimal + Decimal::ONE).gamma()?
             }
